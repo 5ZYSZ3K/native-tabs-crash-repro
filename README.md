@@ -1,56 +1,80 @@
-# Welcome to your Expo app 👋
+# native-tabs-repro
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Minimal Expo reproduction for a crash that occurs when a `TextInput` is focused inside a tab screen rendered with `expo-router/unstable-native-tabs` (`NativeTabs`) on iOS with New Architecture (Fabric) enabled.
 
-## Get started
+## The Bug
 
-1. Install dependencies
+Focusing a `TextInput` on the **Search** tab causes an immediate crash on iOS. The crash is an infinite recursion inside React Native's Yoga layout engine, terminated by an assertion failure:
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+Thread 6 Crashed: com.facebook.react.runtime.JavaScript
+facebook::react::YogaLayoutableShadowNode::layout(facebook::react::LayoutContext)
+  -> recurses 27+ levels
+  -> __assert_rtn
+  -> abort (SIGABRT)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Reproduction Steps
 
-### Other setup steps
+1. Install dependencies:
+   ```sh
+   npm install
+   ```
+2. Run on iOS (New Architecture must be on — already set in `app.json`):
+   ```sh
+   npx expo run:ios
+   ```
+3. The app opens on the **Home** tab.
+4. Tap the **Search** tab in the bottom tab bar.
+5. Tap the `TextInput` (the search field).
+6. The keyboard appears and the app **crashes immediately**.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Crash Signature
 
-## Learn more
+- **Thread:** Thread 6 — `com.facebook.react.runtime.JavaScript`
+- **Function:** `facebook::react::YogaLayoutableShadowNode::layout(facebook::react::LayoutContext)`
+- **Depth:** 27+ recursive frames
+- **Termination:** `__assert_rtn` -> `abort` -> SIGABRT
+- **Architecture:** Fabric / New Architecture only. The crash does **not** reproduce with `newArchEnabled: false`.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Library Versions
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+| Library                          | Version |
+| -------------------------------- | ------- |
+| `expo`                           | ~55.0.7 |
+| `expo-router`                    | ~55.0.6 |
+| `react-native`                   | 0.83.2  |
+| `react-native-screens`           | 4.23.0  |
+| `react-native-safe-area-context` | 5.6.2   |
+| `react-native-reanimated`        | ~3.17.4 |
 
-## Join the community
+## Root Cause Theory
 
-Join our community of developers creating universal apps.
+`NativeTabs` (from `expo-router/unstable-native-tabs`) renders its tab bar natively via `react-native-screens`' `RNSBottomTabs`, which is backed by a `UITabBarController`. Because the tab bar is managed natively, it is **removed from Yoga's shadow tree** — Yoga only sees the content area above it, without a known bottom constraint.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+`NativeTabsView` also wraps each screen in a `SafeAreaProvider` on iOS, adding another layout boundary.
+
+When a `TextInput` is focused:
+
+1. The iOS keyboard appears.
+2. React Native's keyboard-avoidance logic triggers a layout pass through the entire shadow tree.
+3. Yoga attempts to compute the height of the content area, but because the tab bar's height is not in the shadow tree, the bottom of the content area is unconstrained relative to the root container.
+4. This creates a **circular layout dependency**: the content area's height depends on the tab bar height, which is not tracked by Yoga, causing Yoga to re-enter its own layout recursively until the stack overflows and the assertion fires.
+
+## Files
+
+```
+native-tabs-repro/
+├── package.json
+├── app.json               <- newArchEnabled: true
+├── tsconfig.json
+├── metro.config.js
+├── babel.config.js
+└── src/
+    └── app/
+        ├── _layout.tsx          <- root Stack layout (headerShown: false)
+        └── (tabs)/
+            ├── _layout.tsx      <- NativeTabs layout with Home + Search triggers
+            ├── index.tsx        <- Home tab (static label)
+            └── search.tsx       <- Search tab with TextInput (triggers the crash)
+```
