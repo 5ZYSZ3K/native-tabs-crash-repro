@@ -14,11 +14,11 @@ Assertion failed: (YGNodeGetOwner(childYogaNode) == &yogaNode_), function layout
 
 1. Install dependencies:
    ```sh
-   npm install
+   yarn
    ```
-2. Run on iOS (New Architecture must be on — already set in `app.json`):
+2. Run on iOS (New Architecture must be on — already set in `app.config.ts`):
    ```sh
-   npx expo run:ios
+   yarn ios
    ```
 3. The app opens on the **Home** tab.
 4. Tap the **Search** tab in the bottom tab bar.
@@ -43,19 +43,6 @@ Assertion failed: (YGNodeGetOwner(childYogaNode) == &yogaNode_), function layout
 | `react-native-screens`           | 4.23.0  |
 | `react-native-safe-area-context` | 5.6.2   |
 | `react-native-reanimated`        | ~3.17.4 |
-
-## Root Cause Theory
-
-`NativeTabs` (from `expo-router/unstable-native-tabs`) renders its tab bar natively via `react-native-screens`' `RNSBottomTabs`, which is backed by a `UITabBarController`. Because the tab bar is managed natively, it is **removed from Yoga's shadow tree** — Yoga only sees the content area above it, without a known bottom constraint.
-
-`NativeTabsView` also wraps each screen in a `SafeAreaProvider` on iOS, adding another layout boundary.
-
-When a `TextInput` is focused:
-
-1. The iOS keyboard appears.
-2. React Native's keyboard-avoidance logic triggers a layout pass through the entire shadow tree.
-3. Yoga attempts to compute the height of the content area, but because the tab bar's height is not in the shadow tree, the bottom of the content area is unconstrained relative to the root container.
-4. This creates a **circular layout dependency**: the content area's height depends on the tab bar height, which is not tracked by Yoga, causing Yoga to re-enter its own layout recursively until the stack overflows and the assertion fires.
 
 ## Files
 
