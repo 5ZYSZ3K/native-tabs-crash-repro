@@ -7,11 +7,7 @@ Minimal Expo reproduction for a crash that occurs when a `TextInput` is focused 
 Focusing a `TextInput` on the **Search** tab causes an immediate crash on iOS. The crash is an assertion failure:
 
 ```
-Thread 6 Crashed: com.facebook.react.runtime.JavaScript
-facebook::react::YogaLayoutableShadowNode::layout(facebook::react::LayoutContext)
-  -> recurses 27+ levels
-  -> __assert_rtn
-  -> abort (SIGABRT)
+Assertion failed: (YGNodeGetOwner(childYogaNode) == &yogaNode_), function layout, file YogaLayoutableShadowNode.cpp, line 709
 ```
 
 ## Reproduction Steps
