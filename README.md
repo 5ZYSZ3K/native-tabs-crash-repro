@@ -4,7 +4,7 @@ Minimal Expo reproduction for a crash that occurs when a `TextInput` is focused 
 
 ## The Bug
 
-Focusing a `TextInput` on the **Search** tab causes an immediate crash on iOS. The crash is an infinite recursion inside React Native's Yoga layout engine, terminated by an assertion failure:
+Focusing a `TextInput` on the **Search** tab causes an immediate crash on iOS. The crash is an assertion failure:
 
 ```
 Thread 6 Crashed: com.facebook.react.runtime.JavaScript
