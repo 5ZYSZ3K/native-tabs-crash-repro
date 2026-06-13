@@ -1,0 +1,19 @@
+diff --git a/node_modules/react-native/ReactCommon/yoga/yoga/algorithm/CalculateLayout.cpp b/node_modules/react-native/ReactCommon/yoga/yoga/algorithm/CalculateLayout.cpp
+index 6c90ddc..b3ecc41 100644
+--- a/node_modules/react-native/ReactCommon/yoga/yoga/algorithm/CalculateLayout.cpp
++++ b/node_modules/react-native/ReactCommon/yoga/yoga/algorithm/CalculateLayout.cpp
+@@ -601,9 +601,11 @@ static float computeFlexBasisForChildren(
+   for (auto child : children) {
+     child->processDimensions();
+     if (child->style().display() == Display::None) {
+-      zeroOutLayoutRecursively(child);
+-      child->setHasNewLayout(true);
+-      child->setDirty(false);
++      if(performLayout){
++        zeroOutLayoutRecursively(child);
++        child->setHasNewLayout(true);
++        child->setDirty(false);
++      }
+       continue;
+     }
+     if (performLayout) {
