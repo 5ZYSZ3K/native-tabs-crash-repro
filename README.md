@@ -58,7 +58,7 @@ Zeroing hidden children contributes nothing to a measurement; doing it only in l
 
 | Library        | Version |
 | -------------- | ------- |
-| `react-native` | 0.85.3  |
+| `react-native` | 0.86.0  |
 | `react`        | 19.2.3  |
 
 Both the `adoptYogaChild` clone and the unguarded `display: none` zero-out are unchanged on `react-native` `main` as of June 2026.
